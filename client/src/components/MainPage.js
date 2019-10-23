@@ -8,12 +8,25 @@ const MainPage = props => {
         getPhotos();
     },[])
 
+    useEffect(() => {
+        return () => {
+            localStorage.removeItem('token')
+        }
+    },[])
+    if(!localStorage.token){
+        props.history.push('/');
+    }
+
     const [photos, setPhotos] = useState([]);
     const [fileData, setFileData] = useState('');
 
     const getPhotos =async () =>{
         const result = await axios.get('/files');
-        console.log(result);
+        
+        if(result.data.err){
+            localStorage.removeItem('token')
+            alert(result.data.err)
+        }
         setPhotos(result.data);
     }
 
@@ -49,24 +62,26 @@ const MainPage = props => {
         }
     }
 
+    let i =1;
+
     return (
         <div className="container">
-            <div className="row">
-                <div className="col-md-6 m-auto">
-                    <h1 className="text-center display-4 my-4">MongoDB File Upload</h1>
-                    <form onSubmit={e => Submitter(e)}>
-                        <div className="custom-file mb-3">
-                        <input name="upload" type="file" className="btn btn-light" onChange ={e =>Changer(e)} accept=".jpg, .jpeg, .bmp, .png, .gif"/>
-                            <label htmlFor="file" className="custom-file-label">Choose File</label>
-                        </div>
-                        <input type="submit" value="Upload" className="btn btn-primary btn-block"/>
-                    </form>
+            <h1 className="text-center display-4 my-4">MongoDB File Upload</h1>
+            <form onSubmit={e => Submitter(e)}>
+                <div className="custom-file mb-3">
+                    <input name="upload" type="file" className="btn btn-light" onChange ={e =>Changer(e)} accept=".jpg, .jpeg, .bmp, .png, .gif"/>
                 </div>
-            </div>
-            {photos.map(photo => (
-                <Fragment>
-                    <img src={`image/${photo.filename}`} key={photo._id} style={{height:"250px", width:"500px"}}/>
-                    <br/>>
+                <input type="submit" value="Upload" className="btn btn-gold btn-block"/>
+            </form>
+            {photos.length>0 && photos.map(photo => (
+                <Fragment key={photo._id}>
+                    <h4>{i++}) {photo.filename}</h4>
+                    <img src={`image/${photo.filename}`} alt=""/>
+                    <form method="POST" action={`/files/${photo._id}?_method=DELETE`}>
+                        <button className="btn btn-danger btn-block mt-4">
+                            Delete
+                        </button>
+                    </form>
                 </Fragment>                
             ))}
         </div>

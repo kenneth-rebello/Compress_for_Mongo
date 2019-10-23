@@ -8,55 +8,75 @@ const GridFsStorage = require('multer-gridfs-storage');
 const Grid = require('gridfs-stream');
 const methodOverride = require('method-override');
 
-
 const app = express();
 
 app.use(bodyParser.json());
 app.use(methodOverride('_method'));
 
-const mongoURI = "mongodb://localhost/uploader";
-const conn = mongoose.createConnection(mongoURI);
-
 let gfs;
-conn.once('open', () => {
-    console.log('MongoDB connected');
-    gfs = Grid(conn.db, mongoose.mongo);
-    gfs.collection('uploads');
+let storage;
+let upload;
+let conn;
+
+
+app.post('/login', (req, res)=>{
+    const mongoURI = req.body.URI;
+    conn = mongoose.createConnection(mongoURI, {
+        useNewUrlParser: true,
+        useCreateIndex: true,
+        useFindAndModify: false,
+        useUnifiedTopology: true
+    });
+
+
+    storage = new GridFsStorage({
+        url: mongoURI,
+        file: (req, file) => {
+            return new Promise((resolve, reject) => {
+                crypto.randomBytes(16, (err, buf) => {
+                    if (err) {
+                    return reject(err);
+                    }
+                    const filename = buf.toString('hex') + path.extname(file.originalname);
+                    const fileInfo = {
+                    filename: filename,
+                    bucketName: 'uploads'
+                    };
+                    resolve(fileInfo);
+                });
+            });
+        }
+    });
+
+    upload = multer({ storage }).single('file');
+
+    conn.once('open', () => {
+        console.log('MongoDB connected');
+        gfs = Grid(conn.db, mongoose.mongo);
+        gfs.collection('uploads');
+    });
+
 })
 
-const storage = new GridFsStorage({
-url: mongoURI,
-    file: (req, file) => {
-        return new Promise((resolve, reject) => {
-            crypto.randomBytes(16, (err, buf) => {
-                if (err) {
-                return reject(err);
-                }
-                const filename = buf.toString('hex') + path.extname(file.originalname);
-                const fileInfo = {
-                filename: filename,
-                bucketName: 'uploads'
-                };
-                resolve(fileInfo);
-            });
-        });
-    }
-});
-const upload = multer({ storage });
-
-
-app.post('/upload', upload.single('file'), (req,res)=>{
-    console.log('Success');
+app.post('/upload', (req,res)=>{
+    upload(req, res, ()=>{
+        console.log('Success');
+    });
 });
 
 app.get('/files', (req, res) => {
-    gfs.files.find().toArray((err, files)=>{
-        if(!files || files.length === 0){
-            return res.status(404).json({err: 'No files exist'})
-        }
+    if(!conn){
+        return res.json({err: 'No connection to MongoDB databse', files: []})
+    }
+    if(gfs){
+        gfs.files.find().toArray((err, files)=>{
+            if(!files || files.length === 0){
+                return res.status(404).json({err: 'No files exist', files: []})
+            }
 
-        return res.json(files);
-    });
+            return res.json(files);
+        });
+    }
 });
 
 app.get('/files/:filename', (req, res) => {
@@ -91,6 +111,7 @@ app.delete('/files/:id', (req, res)=>{
         if(err){
             return res.status(404).json({err: err});
         }
+        res.redirect('/mongo')
     });
 });
 
