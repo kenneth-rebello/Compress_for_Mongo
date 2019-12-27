@@ -61,6 +61,7 @@ app.post('/login', (req, res)=>{
 app.post('/upload', (req,res)=>{
     upload(req, res, ()=>{
         console.log('Success');
+        console.log(res);
     });
 });
 

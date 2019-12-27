@@ -50,11 +50,15 @@ const MainPage = props => {
             
             const formData = new FormData();
             formData.append("file", compressedFile);
+            console.log('Compressed file');
+            console.log(compressedFile);
             const config = {
                 headers: {
                     'Content-Type': 'application/json'
                 }
             }
+            console.log('Formdata');
+            console.log(formData);
             await axios.post('/upload', formData, config);
 
         } catch (error) {
